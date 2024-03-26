@@ -1,0 +1,148 @@
+import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+import L from 'leaflet';
+import 'leaflet.markercluster';
+import markerIconUrl from "leaflet/dist/images/marker-icon.png";
+import markerIconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
+import markerShadowUrl from "leaflet/dist/images/marker-shadow.png";
+
+const CHARGEMAP_URL = import.meta.env.VITE_CHARGEMAP_URL;
+
+L.Icon.Default.prototype.options.iconUrl = markerIconUrl;
+L.Icon.Default.prototype.options.iconRetinaUrl = markerIconRetinaUrl;
+L.Icon.Default.prototype.options.shadowUrl = markerShadowUrl;
+L.Icon.Default.imagePath = "";
+
+class ClusterMap extends HTMLElement {
+    static get observedAttributes() {
+        return ["latlon", "connectors"];
+    }
+    
+    connectedCallback() {
+        this.insertAdjacentHTML( 'beforeend', '<div id="map" style="height:100%"></div>' );
+
+        this.setLatLon();
+        
+        this.map = L.map('map', {
+            center: [ this.lat, this.lon ],
+            zoom: 11,
+            zoomControl: true
+        });
+
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(this.map);
+
+        L.control.scale({
+            imperial: true,
+            maxWidth: 300
+        }).addTo(this.map);
+
+        this.map.on("moveend", () => this.mapMove() );
+        this.mapMove();
+    }
+
+    setLatLon() {
+        let latlon = this.getAttribute( 'latlon' ) || '41.84371,-73.32928';
+
+        let s = latlon.split( "," );
+        this.lat = s[0];
+        this.lon = s[1];
+
+        if( this.map ) {
+            this.map.setView( [this.lat, this.lon] );
+        }
+    }
+
+    attributeChangedCallback( name ) {
+        if( name == 'latlon' ) {
+            this.setLatLon();
+        }
+        if( name == 'connectors' ) {
+            this.mapMove();
+        }
+    }
+
+    mapMove() {
+        this.networkEvent( "markers:start" );
+
+        let b = this.map.getBounds();
+
+        let connectors = this.getAttribute( "connectors" );
+
+        fetch( `${CHARGEMAP_URL}/in_map?n=${b.getNorth()}&e=${b.getEast()}&s=${b.getSouth()}&w=${b.getWest()}&connectors=${connectors}` )
+            .then( (response) => response.json() )
+            .then( (json) => {
+                this.response = json;
+                if( this.markers ) {
+                    this.markers.remove();
+                }
+
+                let payload = {
+                    total: json.length,
+                    tesla: 0,
+                    j1772: 0,
+                    j1772combo: 0 }
+                this.markers = L.markerClusterGroup();
+                for( let i = 0; i < json.length; i++ ) {
+                    let m = L.marker([json[i].latitude,json[i].longitude]);
+                    m.bindPopup(this.renderPopup( json[i] )).openPopup();
+                    this.markers
+                        .addLayer(m);
+
+                    if( json[i].tesla ) { payload.tesla = payload.tesla + 1 }
+                    if( json[i].j1772 ) { payload.j1772 = payload.j1772 + 1 }
+                    if( json[i].j1772combo ) { payload.j1772combo = payload.j1772combo + 1 }
+
+                }
+
+                console.log( payload )
+                //                ... Add more layers ...
+                this.map.addLayer(this.markers);
+                this.networkEvent( "markers:end", payload )
+            })
+    }
+
+    renderPopup( s ) {
+        let h = `<h1>${s.name}</h1>
+<p>${s.address}<br>${s.city}, ${s.state}, ${s.zip}</p>`
+
+        if( s.dcfast ) {
+            h += `<p>${s.dcfast} fast chargers</p>`
+        }
+
+        if( s.level1 ) {
+            h += `<p>${s.level1} level 1</p>`
+        }
+
+        if( s.level2 ) {
+            h += `<p>${s.level2} level 2</p>`
+        }
+
+        h += `<p>${s.network} ${s.facility}</p>`
+
+        h += '<ul>'
+        if( s.tesla ) { h += `<li>NACS</li>` }
+        if( s.j1772 ) { h += `<li>J1772</li>` }
+        if( s.j1772combo ) { h += `<li>CCS</li>` }
+        h += `</ul>`
+
+
+        return h
+    }
+        
+
+    networkEvent( type, payload ) {
+        let event = new CustomEvent( "network", {
+            bubbles: true,
+            detail: {
+                type: type,
+                payload: payload
+            } } );
+        this.dispatchEvent(event);
+    }
+}
+
+customElements.define( 'cluster-map', ClusterMap )

@@ -1,0 +1,26 @@
+<html>
+  <head>
+    <title>Charge Map</title>
+    <script src="main.js" type="module"></script>
+    <script src="location-lookup.js" type="module"></script>
+    <script src="cluster-map.js" type="module"></script>
+    <script src="network-status.js" type="module"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body h-screen>
+    <div flex>
+      <div w-64 p-4 flex flex-col>
+        <location-lookup py-2></location-lookup>
+        <sl-select id="connectors" py-2 label="Plug Type" multiple clearable>
+          <sl-option value="tesla">NACS</sl-option>
+          <sl-option value="j1772">J1772</sl-option>
+          <sl-option value="j1772combo">CCS</sl-option>
+        </sl-select>
+
+        <network-status py-2></network-status>
+      </div>
+      <cluster-map w-full h-dvh></cluster-map>
+      
+    </div>
+  </body>
+</html>
