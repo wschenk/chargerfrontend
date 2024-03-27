@@ -16,7 +16,7 @@ L.Icon.Default.imagePath = "";
 
 class ClusterMap extends HTMLElement {
     static get observedAttributes() {
-        return ["latlon", "connectors"];
+        return ["latlon", "connectors", "filter"];
     }
     
     connectedCallback() {
@@ -30,11 +30,18 @@ class ClusterMap extends HTMLElement {
             zoomControl: true
         });
 
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+/*        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         }).addTo(this.map);
-
+*/
+        L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}{r}.{ext}', {
+	        minZoom: 0,
+	        maxZoom: 20,
+	        attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://www.stamen.com/" target="_blank">Stamen Design</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+	        ext: 'png'
+        }).addTo( this.map )
+        ;
         L.control.scale({
             imperial: true,
             maxWidth: 300
@@ -56,11 +63,21 @@ class ClusterMap extends HTMLElement {
         }
     }
 
+    setFilter() {
+        let filter = this.getAttribute( 'filter' );
+        console.log( "filter", filter );
+
+        let s = filter.split( "," )
+        this.dc = s[0];
+        this.l1 = s[1];
+        this.l2 = s[2];
+    }
+
     attributeChangedCallback( name ) {
         if( name == 'latlon' ) {
             this.setLatLon();
-        }
-        if( name == 'connectors' ) {
+        } else {
+            this.setFilter();
             this.mapMove();
         }
     }
@@ -70,9 +87,11 @@ class ClusterMap extends HTMLElement {
 
         let b = this.map.getBounds();
 
-        let connectors = this.getAttribute( "connectors" );
+        let bounds = `n=${b.getNorth()}&e=${b.getEast()}&s=${b.getSouth()}&w=${b.getWest()}`;
+        let connectors = `&connectors=${this.getAttribute( "connectors" )}`;
+        let filters = `&dc=${this.dc}&level1=${this.l1}&level2=${this.l2}`;
 
-        fetch( `${CHARGEMAP_URL}/in_map?n=${b.getNorth()}&e=${b.getEast()}&s=${b.getSouth()}&w=${b.getWest()}&connectors=${connectors}` )
+        fetch( `${CHARGEMAP_URL}/in_map?${bounds}${connectors}${filters}` )
             .then( (response) => response.json() )
             .then( (json) => {
                 this.response = json;
@@ -98,15 +117,13 @@ class ClusterMap extends HTMLElement {
 
                 }
 
-                console.log( payload )
-                //                ... Add more layers ...
                 this.map.addLayer(this.markers);
                 this.networkEvent( "markers:end", payload )
             })
     }
 
     renderPopup( s ) {
-        let h = `<h1>${s.name}</h1>
+        let h = `<h1>${s.name} ${s.id}</h1>
 <p>${s.address}<br>${s.city}, ${s.state}, ${s.zip}</p>`
 
         if( s.dcfast ) {

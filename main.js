@@ -18,5 +18,20 @@ window.addEventListener('load', (event) => {
         map.setAttribute( "connectors", connectors.value );
     })
 
+    const dc = document.querySelector( "#dc" );
+    const level1 = document.querySelector( "#level1" );
+    const level2 = document.querySelector( "#level2" );
+
+    function setAtts() {
+        map.setAttribute( "filter", `${dc.checked},${level1.checked},${level2.checked}` );
+    }
+
+    setAtts();
+    
+    document.querySelectorAll("sl-switch").forEach((s) => {
+        s.addEventListener( "sl-change", (e) => {
+            setAtts();
+        })
+    });
 });
 

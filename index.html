@@ -17,7 +17,12 @@
           <sl-option value="j1772combo">CCS</sl-option>
         </sl-select>
 
-        <network-status py-2></network-status>
+        <sl-switch py-2 id="dc" checked>DC Fast Chargers</sl-switch>
+        <sl-switch py-2 id="level2" checked>Level 2</sl-switch>
+        <sl-switch py-2 id="level1" checked>Level 1</sl-switch>
+
+        <div grow></div>
+        <network-status py-2 flex-end></network-status>
       </div>
       <cluster-map w-full h-dvh></cluster-map>
       

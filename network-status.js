@@ -10,8 +10,6 @@ class NetworkStatus extends HTMLElement {
     }
 
     receiveNetworkEvent( event ) {
-        console.log( event );
-        console.log( event.detail );
         if( event.detail.type == 'location:start' ) {
             this.status['loading'] = true;
         }
@@ -43,7 +41,6 @@ class NetworkStatus extends HTMLElement {
         fetch( `${CHARGEMAP_URL}/status` )
             .then( (response) => response.json() )
             .then( (json) => {
-                console.log( "Response", json );
                 this.status['count'] = json.count
                 this.status['date'] = json.date_last_confirmed;
                 this.status['tesla'] = json.tesla;
